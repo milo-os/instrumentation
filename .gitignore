@@ -28,6 +28,16 @@ go.work.sum
 # env file
 .env
 
-# Editor/IDE
-# .idea/
-# .vscode/
+# Build output
+bin/
+
+# Editor and IDE files
+.idea
+.vscode
+*.swp
+*.swo
+*~
+
+# Claude
+.claude/settings.local.json
+.claude/worktrees/
