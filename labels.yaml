@@ -1,0 +1,87 @@
+# Label names shared by every service, for metric labels and log keys alike.
+# This file is the only source of truth; the labels package is generated from
+# it. It lists names, not values.
+#
+# subject: labels code sets, describing what a signal is about.
+# build: labels this library sets, describing the binary that emitted a
+#   signal. Application code never sets these.
+# reserved: labels the collection pipelines set on metrics and log streams,
+#   describing where a signal ran or which tenant receives it. Code must never
+#   set these; doing so collides with the pipeline's value.
+
+subject:
+  - name: organization
+    description: >-
+      Organization that owns an organization-scoped resource. Never derive it
+      from a project; that copies hierarchy out of the core control plane.
+  - name: project
+    description: Project whose control plane owns the resource.
+  - name: resource_kind
+    description: Kind of the resource, such as Gateway.
+  - name: resource_namespace
+    description: Kubernetes namespace of the resource within its project.
+  - name: resource_name
+    description: Name of the resource.
+  - name: reason
+    description: Bounded, machine-readable cause, such as a condition reason.
+  - name: outcome
+    description: Result of an operation, such as success or error.
+
+build:
+  - name: build_version
+    description: Version of the binary that emitted the signal.
+  - name: instrumentation_version
+    description: Version of go.miloapis.com/instrumentation linked into the binary.
+
+reserved:
+  - name: project_name
+    description: >-
+      Routes a record into that project's customer-visible telemetry
+      (milo-os/telemetry). Set only by the pipeline from trusted Kubernetes
+      metadata.
+  - name: app
+    description: Workload name, from the pod's app.kubernetes.io/name label.
+  - name: component
+    description: Workload component, from the pod's app.kubernetes.io/component label.
+  - name: service_name
+    description: Milo service a resource metric belongs to.
+  - name: cluster
+    description: Physical Kubernetes cluster the workload runs in.
+  - name: cluster_role
+    description: Role of the cluster in the fleet.
+  - name: cluster_lifecycle
+    description: Lifecycle stage of the cluster.
+  - name: cluster_profile
+    description: Profile the cluster was built from.
+  - name: environment
+    description: Deployment environment, such as production or staging.
+  - name: provider
+    description: Infrastructure provider running the workload.
+  - name: region
+    description: Region the workload runs in.
+  - name: zone
+    description: Zone the workload runs in.
+  - name: node_role
+    description: Architecture tier of the node.
+  - name: service_role
+    description: Service tier of the node.
+  - name: namespace
+    description: Kubernetes namespace of the pod the signal came from.
+  - name: pod
+    description: Pod the signal came from.
+  - name: container
+    description: Container the signal came from.
+  - name: node
+    description: Node the pod runs on.
+  - name: node_name
+    description: Node the pod runs on, as set on log streams.
+  - name: service
+    description: Kubernetes Service the scrape target was discovered through.
+  - name: endpoint
+    description: Port name of the scrape target.
+  - name: job
+    description: Prometheus scrape job.
+  - name: instance
+    description: >-
+      Prometheus scrape target address on metrics; the pod's
+      app.kubernetes.io/instance label on log streams.
