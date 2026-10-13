@@ -1,5 +1,9 @@
 version: '3'
 
+# Every Go command sets GOTOOLCHAIN inline rather than through `env:`. Task
+# does not override a variable already in the environment, and setup-go sets
+# GOTOOLCHAIN=local in CI, so an `env:` pin silently runs the runner's Go.
+
 vars:
   GO_FLOOR: 1.25.0
   GO_LATEST: 1.27.2
@@ -7,6 +11,8 @@ vars:
   ACTIONLINT_VERSION: v1.7.7
   CONTROLLER_RUNTIME_NEWEST: v0.25.1
   TOOL_DIR: '{{.ROOT_DIR}}/bin'
+  FLOOR: GOTOOLCHAIN=go{{.GO_FLOOR}}
+  LATEST: GOTOOLCHAIN=go{{.GO_LATEST}}
 
 tasks:
   default:
@@ -29,20 +35,16 @@ tasks:
 
   generate:
     desc: Regenerate code from labels.yaml
-    env:
-      GOTOOLCHAIN: go{{.GO_FLOOR}}
     cmds:
-      - go generate ./...
+      - '{{.FLOOR}} go generate ./...'
 
   check-generated:
     desc: Fail if generated code differs from what labels.yaml produces
-    env:
-      GOTOOLCHAIN: go{{.GO_FLOOR}}
     cmds:
       - |
         tmp="$(mktemp)"
         trap 'rm -f "$tmp"' EXIT
-        go run ./internal/labelgen -in labels.yaml -out "$tmp" -package labels
+        {{.FLOOR}} go run ./internal/labelgen -in labels.yaml -out "$tmp" -package labels
         if ! cmp -s "$tmp" labels/zz_generated.go; then
           echo "labels/zz_generated.go is stale; run task generate" >&2
           diff -u labels/zz_generated.go "$tmp" >&2 || true
@@ -51,10 +53,8 @@ tasks:
 
   lint-workflows:
     desc: Lint GitHub workflows with the pinned actionlint
-    env:
-      GOTOOLCHAIN: go{{.GO_FLOOR}}
     cmds:
-      - go run github.com/rhysd/actionlint/cmd/actionlint@{{.ACTIONLINT_VERSION}}
+      - '{{.FLOOR}} go run github.com/rhysd/actionlint/cmd/actionlint@{{.ACTIONLINT_VERSION}}'
 
   check-floor:
     desc: Fail if go.mod's go directive differs from GO_FLOOR
@@ -68,33 +68,24 @@ tasks:
 
   tidy:
     desc: Fail if go.mod or go.sum is not tidy
-    env:
-      GOTOOLCHAIN: go{{.GO_FLOOR}}
     cmds:
-      - go mod tidy -diff
+      - '{{.FLOOR}} go mod tidy -diff'
 
   vet:
     desc: Run go vet on the floor toolchain
-    env:
-      GOTOOLCHAIN: go{{.GO_FLOOR}}
     cmds:
-      - go vet ./...
+      - '{{.FLOOR}} go vet ./...'
 
   lint:
     desc: Run the pinned golangci-lint on the floor toolchain
     deps: [install-golangci-lint]
-    env:
-      GOTOOLCHAIN: go{{.GO_FLOOR}}
     cmds:
-      - '{{.TOOL_DIR}}/golangci-lint-{{.GOLANGCI_LINT_VERSION}} run ./...'
+      - '{{.FLOOR}} {{.TOOL_DIR}}/golangci-lint-{{.GOLANGCI_LINT_VERSION}} run ./...'
 
   install-golangci-lint:
     internal: true
-    env:
-      GOTOOLCHAIN: go{{.GO_FLOOR}}
-      GOBIN: '{{.TOOL_DIR}}/golangci-lint-{{.GOLANGCI_LINT_VERSION}}.d'
     cmds:
-      - go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@{{.GOLANGCI_LINT_VERSION}}
+      - '{{.FLOOR}} GOBIN={{.TOOL_DIR}}/golangci-lint-{{.GOLANGCI_LINT_VERSION}}.d go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@{{.GOLANGCI_LINT_VERSION}}'
       - mv '{{.TOOL_DIR}}/golangci-lint-{{.GOLANGCI_LINT_VERSION}}.d/golangci-lint' '{{.TOOL_DIR}}/golangci-lint-{{.GOLANGCI_LINT_VERSION}}'
       - rmdir '{{.TOOL_DIR}}/golangci-lint-{{.GOLANGCI_LINT_VERSION}}.d'
     status:
@@ -110,22 +101,26 @@ tasks:
 
   test-newest-deps:
     desc: Run tests against the newest controller-runtime, in a copy of the module
-    env:
-      GOTOOLCHAIN: go{{.GO_LATEST}}
     cmds:
       - |
+        export {{.LATEST}}
         tmp="$(mktemp -d)"
         trap 'rm -rf "$tmp"' EXIT
         rsync -a --exclude .git --exclude .claude --exclude bin ./ "$tmp/"
         cd "$tmp"
+        go version
         go get sigs.k8s.io/controller-runtime@{{.CONTROLLER_RUNTIME_NEWEST}}
         go mod tidy
         go test -race ./...
 
   test-on:
     internal: true
-    env:
-      GOTOOLCHAIN: go{{.GO_VERSION}}
     cmds:
-      - go version
-      - go test -race ./...
+      - |
+        export GOTOOLCHAIN=go{{.GO_VERSION}}
+        actual="$(go env GOVERSION)"
+        if [ "$actual" != "go{{.GO_VERSION}}" ]; then
+          echo "tests ran on $actual, not go{{.GO_VERSION}}" >&2
+          exit 1
+        fi
+        go test -race ./...
