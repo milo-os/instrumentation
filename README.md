@@ -8,7 +8,7 @@ Uniform logging and metrics for Milo services.
 go get go.miloapis.com/instrumentation
 ```
 
-Requires Go 1.25 or later and controller-runtime v0.21 or later.
+Requires Go 1.25 or later and controller-runtime v0.20.4 or later.
 
 ## Find unexported metrics and unstandard loggers
 
@@ -30,10 +30,15 @@ lives.
 `AssertNothingStranded` fails at:
 
 - every use of `prometheus.DefaultRegisterer`: `promauto.New*`,
-  `prometheus.MustRegister`, `prometheus.Register`, and `promhttp.Handler`. A
-  controller-runtime manager never serves that registry;
-- every direct use of controller-runtime's registry or `promauto.With`, which
-  skips the reserved-label check and `Lint`;
+  `prometheus.MustRegister`, `prometheus.Register`, and `promhttp.Handler`.
+  Neither a controller-runtime manager nor a k8s.io/apiserver serves that
+  registry. Passing `prometheus.DefaultGatherer` to `metrics.WithGatherers` is
+  allowed;
+- every direct use of controller-runtime's registry, `promauto.With`, or
+  registration on component-base's `legacyregistry`, which skips the
+  reserved-label check and `Lint`;
+- `legacyregistry.Handler`, which serves none of the metrics created through
+  this library;
 - a manager whose metrics server is disabled with `BindAddress: "0"`, when
   nothing in the module serves metrics another way.
 
@@ -48,8 +53,8 @@ a logger passes if another file in the module does.
 `AssertStandardLogger` fails where code builds a logger another way, such as
 `zap.New`, `slog.New`, or `funcr.New`, and at every `SetLogger` call in a
 file that never calls `logging.New`. It also fails if no file both calls
-`SetLogger` and builds the logger with `logging.New`, because
-controller-runtime drops every log line until a logger is set.
+`SetLogger` and builds the logger with `logging.New`, because until then
+controller-runtime drops its log lines and klog writes plain text.
 
 To exempt a directory, pass `instrumenttest.SkipDir("path/from/module/root")`.
 A path that does not exist fails the test. Files with `//go:build ignore` are
@@ -84,6 +89,32 @@ values at scrape time, use `metrics.MustRegister`.
 A binary whose metrics endpoint is not a manager's, including one that sets
 the manager's `BindAddress` to `"0"`, serves the same registry with
 `metrics.Handler()`.
+
+### Serve other registries
+
+Add the registries a binary already serves with `metrics.WithGatherers`. A
+k8s.io/apiserver turns off its own `/metrics` with `EnableMetrics = false` and
+serves both registries on the same path:
+
+```go
+mux.Handle("/metrics", metrics.Handler(
+    metrics.WithGatherers(legacyregistry.DefaultGatherer),
+))
+```
+
+Pass `prometheus.DefaultGatherer` too if a dependency registers there.
+
+When another registry already exports the Go runtime and process metrics,
+controller-runtime's copies are dropped so the two don't collide. Any other
+series exported by two registries fails the whole scrape, so rename one of
+them. Catch that in a test that builds the handler the way the binary does
+and links the same packages:
+
+```go
+func TestMetricsScrape(t *testing.T) {
+    instrumenttest.AssertScrapes(t, server.MetricsHandler())
+}
+```
 
 Lint metric names in a package that imports every package defining metrics:
 

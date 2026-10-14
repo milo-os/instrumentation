@@ -6,7 +6,8 @@
 // is the registry a controller-runtime manager serves at /metrics. Metrics
 // created with promauto or prometheus.MustRegister land on
 // prometheus.DefaultRegisterer instead, which the manager never serves. A
-// server that is not a manager serves the same registry with Handler.
+// server that is not a manager serves the same registry with Handler, adding
+// its own registries with WithGatherers.
 //
 // Use the constants in go.miloapis.com/instrumentation/labels for label
 // names. Constructors panic if a label name is reserved for the collection
@@ -30,6 +31,7 @@ import (
 	"sync"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 
@@ -37,18 +39,69 @@ import (
 	"go.miloapis.com/instrumentation/labels"
 )
 
-// HandlerOption configures Handler. None are defined yet; the parameter exists
-// so options can be added without breaking callers.
+// HandlerOption configures Handler.
 type HandlerOption func(*handlerOptions)
 
-type handlerOptions struct{}
+type handlerOptions struct {
+	gatherers []prometheus.Gatherer
+}
 
-// Handler serves the registry every constructor registers on. Use it in a
-// binary whose metrics endpoint is not a controller-runtime manager's, such as
-// one that sets the manager's metrics BindAddress to "0".
-func Handler(_ ...HandlerOption) http.Handler {
-	ensureBuildInfo(ctrlmetrics.Registry)
-	return promhttp.HandlerFor(ctrlmetrics.Registry, promhttp.HandlerOpts{ErrorHandling: promhttp.HTTPErrorOnError})
+// WithGatherers serves gs alongside the registry every constructor registers
+// on, such as k8s.io/component-base's legacyregistry.DefaultGatherer in a
+// k8s.io/apiserver, or prometheus.DefaultGatherer for dependencies that
+// register there.
+//
+// When one of gs already exports the Go runtime or process metrics,
+// controller-runtime's copies are dropped so the two don't collide. Any other
+// series exported by two registries fails the scrape; rename one of them.
+// instrumenttest.AssertScrapes catches that in a test.
+func WithGatherers(gs ...prometheus.Gatherer) HandlerOption {
+	return func(o *handlerOptions) { o.gatherers = append(o.gatherers, gs...) }
+}
+
+// Handler serves the registry every constructor registers on, and any
+// registries added with WithGatherers. Use it in a binary whose metrics
+// endpoint is not a controller-runtime manager's, such as a k8s.io/apiserver
+// or one that sets the manager's metrics BindAddress to "0".
+func Handler(opts ...HandlerOption) http.Handler {
+	var o handlerOptions
+	for _, opt := range opts {
+		opt(&o)
+	}
+	reg := ctrlmetrics.Registry
+	ensureBuildInfo(reg)
+	gatherers := prometheus.Gatherers{reg}
+	if len(o.gatherers) > 0 {
+		dropRuntimeCollectors(reg, o.gatherers)
+		gatherers = append(gatherers, o.gatherers...)
+	}
+	return promhttp.HandlerFor(gatherers, promhttp.HandlerOpts{ErrorHandling: promhttp.HTTPErrorOnError})
+}
+
+const (
+	goFamily      = "go_goroutines"
+	processFamily = "process_start_time_seconds"
+)
+
+// dropRuntimeCollectors unregisters the Go and process collectors
+// controller-runtime adds to reg when one of gs already exports them.
+// controller-runtime v0.20 registers the default Go collector and later
+// versions the one with every runtime metric, so both are tried.
+func dropRuntimeCollectors(reg prometheus.Registerer, gs []prometheus.Gatherer) {
+	exported := map[string]bool{}
+	for _, g := range gs {
+		families, _ := g.Gather()
+		for _, f := range families {
+			exported[f.GetName()] = true
+		}
+	}
+	if exported[goFamily] {
+		reg.Unregister(collectors.NewGoCollector())
+		reg.Unregister(collectors.NewGoCollector(collectors.WithGoCollectorRuntimeMetrics(collectors.MetricsAll)))
+	}
+	if exported[processFamily] {
+		reg.Unregister(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
+	}
 }
 
 // NewCounter creates and registers a counter.
