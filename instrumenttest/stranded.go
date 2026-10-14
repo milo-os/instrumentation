@@ -18,6 +18,7 @@ const (
 	kindDisabled = "disabled"
 	kindServing  = "serving"
 	kindHandler  = "handler"
+	kindUnserved = "unserved"
 
 	metricsServerPath = "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 )
@@ -37,27 +38,38 @@ var strandedRules = []rule{
 	},
 }
 
-var directRules = []rule{
-	{path: "github.com/prometheus/client_golang/prometheus/promauto", match: oneOf("With")},
-}
-
 const (
-	ctrlMetricsPath = "sigs.k8s.io/controller-runtime/pkg/metrics"
-	promhttpPath    = "github.com/prometheus/client_golang/prometheus/promhttp"
+	ctrlMetricsPath    = "sigs.k8s.io/controller-runtime/pkg/metrics"
+	promhttpPath       = "github.com/prometheus/client_golang/prometheus/promhttp"
+	legacyRegistryPath = "k8s.io/component-base/metrics/legacyregistry"
+	metricsPath        = "go.miloapis.com/instrumentation/metrics"
 )
 
+var directRules = []rule{
+	{path: "github.com/prometheus/client_golang/prometheus/promauto", match: oneOf("With")},
+	{path: legacyRegistryPath, match: oneOf("Register", "MustRegister", "RawRegister", "RawMustRegister", "CustomRegister", "CustomMustRegister", "Registerer")},
+}
+
+var unservedRules = []rule{
+	{path: legacyRegistryPath, match: oneOf("Handler", "HandlerWithReset")},
+}
+
 var handlerRules = []rule{
-	{path: "go.miloapis.com/instrumentation/metrics", match: oneOf("Handler")},
+	{path: metricsPath, match: oneOf("Handler")},
 }
 
 // AssertNothingStranded fails for every place in the current module's
 // non-test source where a metric would not be exported, or would skip the
 // checks in go.miloapis.com/instrumentation/metrics:
 //   - a use of prometheus.DefaultRegisterer, which a controller-runtime
-//     manager never serves;
+//     manager never serves, other than passing prometheus.DefaultGatherer to
+//     metrics.WithGatherers;
 //   - any use of controller-runtime's registry other than reading it with
-//     Gather or serving it with promhttp.HandlerFor, and promauto.With, since
-//     registering through them skips the reserved-label check and Lint;
+//     Gather or serving it with promhttp.HandlerFor, promauto.With, and
+//     registering on k8s.io/component-base's legacyregistry, since metrics
+//     registered through them skip the reserved-label check and Lint;
+//   - serving legacyregistry on its own with legacyregistry.Handler, which
+//     leaves out every metric created through the metrics package;
 //   - a manager whose metrics server is disabled with BindAddress "0" when
 //     nothing in the module serves metrics: no metrics.Handler, and no
 //     metricsserver.Options with a literal address or none at all. An address
@@ -90,9 +102,11 @@ func assertNothingStranded(t testing.TB, root string, cfg config) {
 	for _, f := range findings {
 		switch f.kind {
 		case kindStranded:
-			t.Errorf("%s:%d: %s uses prometheus.DefaultRegisterer, which a controller-runtime manager never serves; create metrics with go.miloapis.com/instrumentation/metrics", f.file, f.line, f.what)
+			t.Errorf("%s:%d: %s uses Prometheus's default registry, which neither a controller-runtime manager nor a k8s.io/apiserver serves; create metrics with go.miloapis.com/instrumentation/metrics", f.file, f.line, f.what)
 		case kindDirect:
-			t.Errorf("%s:%d: %s uses controller-runtime's registry directly, so metrics registered through it skip the reserved-label check and Lint; use the go.miloapis.com/instrumentation/metrics constructors or metrics.MustRegister, and metrics.Handler to serve it", f.file, f.line, f.what)
+			t.Errorf("%s:%d: %s registers metrics outside go.miloapis.com/instrumentation/metrics, so they skip the reserved-label check and Lint; use its constructors or metrics.MustRegister", f.file, f.line, f.what)
+		case kindUnserved:
+			t.Errorf("%s:%d: %s serves component-base's registry without the metrics created through go.miloapis.com/instrumentation/metrics; serve metrics.Handler(metrics.WithGatherers(legacyregistry.DefaultGatherer)) instead", f.file, f.line, f.what)
 		case kindDisabled:
 			if !served {
 				t.Errorf("%s:%d: this manager's metrics server is disabled and nothing in the module serves metrics.Handler, so no metric is exported; mount metrics.Handler on the server that serves /metrics", f.file, f.line)
@@ -105,12 +119,27 @@ func visitMetrics(fset *token.FileSet, file *ast.File) []finding {
 	at := func(n ast.Node, what, kind string) finding {
 		return finding{line: fset.Position(n.Pos()).Line, what: what, kind: kind}
 	}
+	metricsNames := importNames(file, metricsPath)
+	gathered := map[ast.Node]bool{}
+	ast.Inspect(file, func(n ast.Node) bool {
+		if call, ok := n.(*ast.CallExpr); ok && isSelector(call.Fun, metricsNames, "WithGatherers") {
+			for _, arg := range call.Args {
+				gathered[arg] = true
+			}
+		}
+		return true
+	})
 	var out []finding
 	for _, r := range references(file, file, strandedRules) {
-		out = append(out, at(r.node, r.what, kindStranded))
+		if !gathered[r.node] {
+			out = append(out, at(r.node, r.what, kindStranded))
+		}
 	}
 	for _, r := range references(file, file, directRules) {
 		out = append(out, at(r.node, r.what, kindDirect))
+	}
+	for _, r := range references(file, file, unservedRules) {
+		out = append(out, at(r.node, r.what, kindUnserved))
 	}
 	ctrlNames := importNames(file, ctrlMetricsPath)
 	promhttpNames := importNames(file, promhttpPath)

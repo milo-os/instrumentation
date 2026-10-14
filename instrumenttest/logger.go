@@ -35,8 +35,9 @@ var setLoggerRules = []rule{
 //   - calls SetLogger in a file that never calls logging.New or
 //     logging.NewRaw, as a binary with its own logger would;
 //   - has no file that both calls SetLogger and builds the logger with
-//     logging.New or logging.NewRaw, in which case controller-runtime drops
-//     every log line.
+//     logging.New or logging.NewRaw, in which case nothing logs with the
+//     standard defaults: controller-runtime drops its log lines and klog
+//     writes plain text.
 //
 // Wrapping logging.NewRaw, for example with zapr.NewLogger, is allowed, as is
 // bridging to slog with slog.New(logr.ToSlogHandler(logger)).
@@ -71,7 +72,7 @@ func assertStandardLogger(t testing.TB, root string, cfg config) {
 		}
 	}
 	if !wired {
-		t.Errorf("no file in %s calls SetLogger and builds the logger with logging.New or logging.NewRaw from go.miloapis.com/instrumentation/logging; controller-runtime drops every log line until a logger is set", root)
+		t.Errorf("no file in %s calls SetLogger and builds the logger with logging.New or logging.NewRaw from go.miloapis.com/instrumentation/logging, so nothing logs with the standard defaults: controller-runtime drops its log lines and klog writes plain text", root)
 	}
 }
 

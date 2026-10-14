@@ -35,7 +35,7 @@ func positions(findings []finding) []string {
 func strandedVisit(fset *token.FileSet, file *ast.File) []finding {
 	var out []finding
 	for _, f := range visitMetrics(fset, file) {
-		if f.kind == kindStranded || f.kind == kindDirect {
+		if f.kind == kindStranded || f.kind == kindDirect || f.kind == kindUnserved {
 			out = append(out, f)
 		}
 	}
@@ -47,8 +47,8 @@ func TestScanFindsEveryDefaultRegistration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if scanned != 7 {
-		t.Errorf("scanned %d files, want 7 (bad.go, direct.go, plain.go, dot.go, good.go, reads.go, serve.go; gen.go is go:build ignore)", scanned)
+	if scanned != 9 {
+		t.Errorf("scanned %d files, want 9 (bad.go, direct.go, legacy.go, plain.go, dot.go, gatherers.go, good.go, reads.go, serve.go; gen.go is go:build ignore)", scanned)
 	}
 	want := []string{
 		"bad/bad.go:9 pa.NewCounter",
@@ -58,6 +58,9 @@ func TestScanFindsEveryDefaultRegistration(t *testing.T) {
 		"bad/bad.go:16 prom.MustRegister",
 		"bad/bad.go:17 prom.Register",
 		"bad/direct.go:10 metrics.Registry",
+		"bad/legacy.go:13 legacyregistry.MustRegister",
+		"bad/legacy.go:14 legacyregistry.Registerer",
+		"bad/legacy.go:15 legacyregistry.Handler",
 		"bad/plain.go:8 promauto.NewGaugeVec",
 		"dot/dot.go:7 MustRegister",
 		"serve/serve.go:9 promhttp.Handler",
@@ -94,8 +97,8 @@ func TestAssertNothingStrandedReportsEachFinding(t *testing.T) {
 	r := run(t, func(tb testing.TB) {
 		assertNothingStranded(tb, strandedFixture, newConfig([]Option{SkipDir("skipme"), SkipDir("helper")}))
 	})
-	if len(r.errors) != 10 {
-		t.Fatalf("got %d errors, want 10: %v", len(r.errors), r.errors)
+	if len(r.errors) != 13 {
+		t.Fatalf("got %d errors, want 13: %v", len(r.errors), r.errors)
 	}
 	for _, e := range r.errors {
 		if !strings.Contains(e, "go.miloapis.com/instrumentation/metrics") {
