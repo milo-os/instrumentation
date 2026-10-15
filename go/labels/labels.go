@@ -11,10 +11,11 @@
 // the pipeline's value: Prometheus renames the metric label to
 // exported_<name>, and Loki renames the log field to <name>_extracted.
 //
-// The names come from labels.yaml at the repository root.
+// The names come from labels.yaml at the repository root, which every
+// language in the repository generates from.
 package labels
 
-//go:generate go run ../internal/labelgen -in ../labels.yaml -out zz_generated.go -package labels
+//go:generate go run ../internal/labelgen -in ../../labels.yaml -out zz_generated.go -package labels
 
 import "sort"
 
