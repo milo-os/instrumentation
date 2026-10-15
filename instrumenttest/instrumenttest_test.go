@@ -340,3 +340,19 @@ func run(t *testing.T, f func(testing.TB)) *recorder {
 	<-done
 	return r
 }
+
+func TestAssertStandardLoggerRefusesDevelopmentMode(t *testing.T) {
+	r := run(t, func(tb testing.TB) { assertStandardLogger(tb, "testdata/devmode", newConfig(nil)) })
+	want := []string{
+		"cmd/main.go:12: Development: true turns on development mode",
+		"cmd/main.go:15: UseDevMode(true) turns on development mode",
+	}
+	if len(r.errors) != len(want) {
+		t.Fatalf("got %d errors, want %d: %v", len(r.errors), len(want), r.errors)
+	}
+	for i, w := range want {
+		if !strings.HasPrefix(r.errors[i], w) {
+			t.Errorf("error %d = %q, want prefix %q", i, r.errors[i], w)
+		}
+	}
+}

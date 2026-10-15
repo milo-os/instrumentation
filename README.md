@@ -52,7 +52,10 @@ a logger passes if another file in the module does.
 
 `AssertStandardLogger` fails where code builds a logger another way, such as
 `zap.New`, `slog.New`, or `funcr.New`, and at every `SetLogger` call in a
-file that never calls `logging.New`. It also fails if no file both calls
+file that never calls `logging.New`. It also fails at a literal `Development: true` or
+`UseDevMode(true)` in controller-runtime's zap options. Development mode logs
+console text at debug level, which Loki can't parse into fields, and makes
+`DPanic` panic. Leave it off and pass `--zap-devel` for local runs. It also fails if no file both calls
 `SetLogger` and builds the logger with `logging.New`, because until then
 controller-runtime drops its log lines and klog writes plain text.
 

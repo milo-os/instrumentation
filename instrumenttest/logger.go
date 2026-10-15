@@ -32,6 +32,9 @@ var setLoggerRules = []rule{
 
 // AssertStandardLogger fails if the current module's non-test source:
 //   - builds a logger some other way, such as zap.New, slog.New, or funcr.New;
+//   - turns on controller-runtime zap's development mode with a literal
+//     Development: true or UseDevMode(true), which logs console text at debug
+//     level and makes DPanic panic;
 //   - calls SetLogger in a file that never calls logging.New or
 //     logging.NewRaw, as a binary with its own logger would;
 //   - has no file that both calls SetLogger and builds the logger with
@@ -49,7 +52,12 @@ func AssertStandardLogger(t testing.TB, opts ...Option) {
 	assertStandardLogger(t, currentModuleRoot(t), newConfig(opts))
 }
 
-const kindWired = "wired"
+const (
+	kindWired   = "wired"
+	kindDevMode = "devmode"
+
+	crZapPath = "sigs.k8s.io/controller-runtime/pkg/log/zap"
+)
 
 func assertStandardLogger(t testing.TB, root string, cfg config) {
 	t.Helper()
@@ -65,6 +73,8 @@ func assertStandardLogger(t testing.TB, root string, cfg config) {
 		switch {
 		case f.kind == kindWired:
 			wired = true
+		case f.kind == kindDevMode:
+			t.Errorf("%s:%d: %s turns on development mode, which logs console text at debug level and makes DPanic panic; leave it off and pass --zap-devel for local runs", f.file, f.line, f.what)
 		case strings.HasSuffix(f.what, "SetLogger"):
 			t.Errorf("%s:%d: %s sets a logger, but nothing in this file calls go.miloapis.com/instrumentation/logging.New%s", f.file, f.line, f.what, f.note)
 		default:
@@ -80,7 +90,7 @@ func visitLoggers(fset *token.FileSet, file *ast.File) []finding {
 	at := func(n ast.Node, what string) finding {
 		return finding{line: fset.Position(n.Pos()).Line, what: what}
 	}
-	var out []finding
+	out := devModes(fset, file)
 	bridged := slogBridges(file)
 	for _, r := range references(file, file, bypassLoggerRules) {
 		if !bridged[r.node] {
@@ -101,6 +111,47 @@ func visitLoggers(fset *token.FileSet, file *ast.File) []finding {
 		out = append(out, f)
 	}
 	return out
+}
+
+// devModes finds controller-runtime zap options that turn development mode on
+// with a literal true.
+func devModes(fset *token.FileSet, file *ast.File) []finding {
+	names := importNames(file, crZapPath)
+	if len(names) == 0 {
+		return nil
+	}
+	var out []finding
+	add := func(n ast.Node, what string) {
+		out = append(out, finding{line: fset.Position(n.Pos()).Line, what: what, kind: kindDevMode})
+	}
+	ast.Inspect(file, func(n ast.Node) bool {
+		switch n := n.(type) {
+		case *ast.CompositeLit:
+			if !isSelector(n.Type, names, "Options") {
+				return true
+			}
+			for _, e := range n.Elts {
+				kv, ok := e.(*ast.KeyValueExpr)
+				if !ok {
+					continue
+				}
+				if key, ok := kv.Key.(*ast.Ident); ok && key.Name == "Development" && isTrue(kv.Value) {
+					add(kv, "Development: true")
+				}
+			}
+		case *ast.CallExpr:
+			if isSelector(n.Fun, names, "UseDevMode") && len(n.Args) == 1 && isTrue(n.Args[0]) {
+				add(n, "UseDevMode(true)")
+			}
+		}
+		return true
+	})
+	return out
+}
+
+func isTrue(e ast.Expr) bool {
+	id, ok := e.(*ast.Ident)
+	return ok && id.Name == "true"
 }
 
 // otherLoggingPackage names a different package the file imports as logging,
