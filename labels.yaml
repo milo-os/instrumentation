@@ -18,6 +18,10 @@ subject:
     description: Project whose control plane owns the resource.
   - name: resource_kind
     description: Kind of the resource, such as Gateway.
+  - name: resource_group
+    description: >-
+      API group of the resource, such as gateway.networking.k8s.io. Empty for
+      the core group.
   - name: resource_namespace
     description: Kubernetes namespace of the resource within its project.
   - name: resource_name

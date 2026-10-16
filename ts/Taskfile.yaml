@@ -1,0 +1,74 @@
+version: '3'
+
+vars:
+  PNPM:
+    sh: echo "npx --yes $(node -p "require('./package.json').packageManager")"
+
+tasks:
+  ci:
+    desc: Run every TypeScript check
+    cmds:
+      - task: install
+      - task: check-generated
+      - task: typecheck
+      - task: test
+      - task: test-bun
+      - task: check-package
+
+  install:
+    desc: Install dependencies from the lockfile
+    cmds:
+      - '{{.PNPM}} install --frozen-lockfile'
+
+  generate:
+    desc: Regenerate src/labels.generated.ts from labels.yaml
+    cmds:
+      - cd ../go && go run ./internal/labelgen -lang ts -in ../labels.yaml -out ../ts/src/labels.generated.ts
+
+  check-generated:
+    desc: Fail if src/labels.generated.ts differs from what labels.yaml produces
+    cmds:
+      - |
+        tmp="$(mktemp)"
+        trap 'rm -f "$tmp"' EXIT
+        (cd ../go && go run ./internal/labelgen -lang ts -in ../labels.yaml -out "$tmp")
+        if ! cmp -s "$tmp" src/labels.generated.ts; then
+          echo "src/labels.generated.ts is stale; run task ts:generate" >&2
+          diff -u src/labels.generated.ts "$tmp" >&2 || true
+          exit 1
+        fi
+
+  typecheck:
+    desc: Typecheck sources and tests
+    cmds:
+      - '{{.PNPM}} run typecheck'
+
+  test:
+    desc: Run the tests on the running Node.js
+    cmds:
+      - '{{.PNPM}} test'
+
+  test-bun:
+    desc: Run the tests under Bun, each file in its own process as Node runs them
+    cmds:
+      - |
+        for f in src/*.test.ts; do
+          bun test "./$f"
+        done
+
+  check-package:
+    desc: Build, and fail if the package would ship anything but the build output
+    cmds:
+      - '{{.PNPM}} run build'
+      - |
+        files="$(npm pack --dry-run --json | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{for(const f of JSON.parse(s)[0].files)console.log(f.path)})')"
+        echo "$files"
+        unexpected="$(echo "$files" | grep -v -E '^(dist/.*\.(js|d\.ts|js\.map|d\.ts\.map)|package\.json|README\.md|LICENSE)$' || true)"
+        if [ -n "$unexpected" ]; then
+          echo "unexpected files in the package:" >&2
+          echo "$unexpected" >&2
+          exit 1
+        fi
+        for want in dist/index.js dist/index.d.ts dist/metrics.js dist/labels.generated.js LICENSE README.md; do
+          echo "$files" | grep -qx "$want" || { echo "package is missing $want" >&2; exit 1; }
+        done

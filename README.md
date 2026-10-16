@@ -6,6 +6,7 @@ written in.
 | Language | Directory | Install |
 |---|---|---|
 | Go | [go](go) | `go get go.miloapis.com/instrumentation` |
+| TypeScript | [ts](ts) | `npm install @miloapis/instrumentation` |
 
 ## Shared labels
 
@@ -17,8 +18,12 @@ from it.
 ## Releases
 
 Each language is versioned on its own and tagged with its directory as a
-prefix: `go/v0.4.0` releases the Go module. A change to `labels.yaml` reaches
-each language in its next release.
+prefix. A change to `labels.yaml` reaches each language in its next release.
+
+- **Go:** push a `go/vX.Y.Z` tag.
+- **TypeScript:** run the "Publish TypeScript package to npm" workflow, which
+  opens a pull request bumping `ts/package.json`. Merging it publishes to
+  npm's `latest` tag, then tags `ts/vX.Y.Z` with a GitHub release.
 
 Go releases before v0.4.0 were tagged at the repository root, from before the
 module moved into `go`.

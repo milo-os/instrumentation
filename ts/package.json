@@ -1,0 +1,39 @@
+{
+  "name": "@miloapis/instrumentation",
+  "version": "0.1.0",
+  "description": "Uniform logging and metrics for Milo services.",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/milo-os/instrumentation.git",
+    "directory": "ts"
+  },
+  "type": "module",
+  "exports": {
+    ".": "./dist/index.js",
+    "./labels": "./dist/labels.js",
+    "./metrics": "./dist/metrics.js",
+    "./buildinfo": "./dist/buildinfo.js",
+    "./logging": "./dist/logging.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=24"
+  },
+  "packageManager": "pnpm@10.33.0",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "node --test 'src/**/*.test.ts'"
+  },
+  "devDependencies": {
+    "@prometheus-io/client": "0.16.1",
+    "@types/node": "24.19.1",
+    "typescript": "6.0.3"
+  },
+  "peerDependencies": {
+    "@prometheus-io/client": "^0.16.1"
+  }
+}

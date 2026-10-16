@@ -7,6 +7,9 @@ includes:
   go:
     taskfile: go/Taskfile.yaml
     dir: go
+  ts:
+    taskfile: ts/Taskfile.yaml
+    dir: ts
 
 tasks:
   default:
@@ -20,6 +23,13 @@ tasks:
     cmds:
       - task: lint-workflows
       - task: go:ci
+      - task: ts:ci
+
+  generate:
+    desc: Regenerate every language's code from labels.yaml
+    cmds:
+      - task: go:generate
+      - task: ts:generate
 
   lint-workflows:
     desc: Lint GitHub workflows with the pinned actionlint
