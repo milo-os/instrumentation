@@ -11,6 +11,8 @@ const (
 	Project = "project"
 	// ResourceKind is the "resource_kind" label. Kind of the resource, such as Gateway.
 	ResourceKind = "resource_kind"
+	// ResourceGroup is the "resource_group" label. API group of the resource, such as gateway.networking.k8s.io. Empty for the core group.
+	ResourceGroup = "resource_group"
 	// ResourceNamespace is the "resource_namespace" label. Kubernetes namespace of the resource within its project.
 	ResourceNamespace = "resource_namespace"
 	// ResourceName is the "resource_name" label. Name of the resource.
