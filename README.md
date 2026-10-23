@@ -6,7 +6,7 @@ written in.
 | Language | Directory | Install |
 |---|---|---|
 | Go | [go](go) | `go get go.miloapis.com/instrumentation` |
-| TypeScript | [ts](ts) | `npm install @miloapis/instrumentation` |
+| TypeScript | [ts](ts) | `npm install --save-exact @miloapis/instrumentation` |
 
 To add either one to a service, follow [ADOPTING.md](ADOPTING.md).
 
