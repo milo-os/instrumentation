@@ -18,8 +18,10 @@ Adopting means three things in either language:
 1. Add the module. It requires Go 1.26 or later:
 
    ```sh
-   go get go.miloapis.com/instrumentation@latest
+   go get go.miloapis.com/instrumentation
    ```
+
+   `go.mod` records the exact version this resolves; upgrade deliberately.
 
 1. Replace every `promauto.New*`, `prometheus.MustRegister`, and
    `legacyregistry.MustRegister` with the constructors in
@@ -81,8 +83,11 @@ out a directory, such as generated code, pass
 1. Add the package. It requires Node.js 24 or later, or Bun:
 
    ```sh
-   npm install @miloapis/instrumentation @prometheus-io/client
+   npm install --save-exact @miloapis/instrumentation @prometheus-io/client
    ```
+
+   `--save-exact` records the exact versions installed rather than a range,
+   so the service changes versions only when someone upgrades it.
 
 1. Remove `prom-client` and `@hono/prometheus`. Create every metric with
    `newCounter`, `newGauge`, `newHistogram`, or `newSummary` from
@@ -95,8 +100,13 @@ out a directory, such as generated code, pass
 
 ### Add the TypeScript adoption check
 
-Add `typescript` as a development dependency if the service doesn't have it,
-then add this test, for example as `src/instrumentation.test.ts`:
+Add `typescript` as a development dependency if the service doesn't have it:
+
+```sh
+npm install --save-dev --save-exact typescript
+```
+
+Then add this test, for example as `src/instrumentation.test.ts`:
 
 ```ts
 import { test } from 'node:test';
