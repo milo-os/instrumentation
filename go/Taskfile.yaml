@@ -5,7 +5,7 @@ version: '3'
 # GOTOOLCHAIN=local in CI, so an `env:` pin silently runs the runner's Go.
 
 vars:
-  GO_FLOOR: 1.25.0
+  GO_FLOOR: 1.26.0
   GO_LATEST: 1.27.2
   GOLANGCI_LINT_VERSION: v2.12.2
   CONTROLLER_RUNTIME_NEWEST: v0.25.1
