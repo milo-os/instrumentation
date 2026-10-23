@@ -8,7 +8,7 @@ Uniform logging and metrics for Milo services.
 go get go.miloapis.com/instrumentation
 ```
 
-Requires Go 1.25 or later and controller-runtime v0.20.4 or later.
+Requires Go 1.26 or later and controller-runtime v0.20.4 or later.
 
 ## Find unexported metrics and unstandard loggers
 
