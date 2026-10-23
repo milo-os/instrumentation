@@ -7,7 +7,10 @@ version: '3'
 vars:
   GO_FLOOR: 1.26.0
   GO_LATEST: 1.27.2
+  # renovate: datasource=go depName=github.com/golangci/golangci-lint/v2
   GOLANGCI_LINT_VERSION: v2.12.2
+  # renovate: datasource=go depName=golang.org/x/vuln
+  GOVULNCHECK_VERSION: v1.8.0
   CONTROLLER_RUNTIME_NEWEST: v0.25.1
   TOOL_DIR: '{{.ROOT_DIR}}/bin'
   FLOOR: GOTOOLCHAIN=go{{.GO_FLOOR}}
@@ -22,8 +25,34 @@ tasks:
       - task: tidy
       - task: vet
       - task: lint
+      - task: vulncheck
       - task: test
       - task: test-newest-deps
+
+  vulncheck:
+    desc: Fail on vulnerabilities the code reaches in its dependencies
+    cmds:
+      - |
+        out="$(mktemp)"
+        trap 'rm -f "$out"' EXIT
+        {{.FLOOR}} go run golang.org/x/vuln/cmd/govulncheck@{{.GOVULNCHECK_VERSION}} -format json ./... > "$out"
+        reachable() {
+          jq -r --arg stdlib "$1" 'select(.finding) | .finding
+            | select(.trace[0].function != null and ((.trace[0].module == "stdlib") == ($stdlib == "yes")))
+            | "\(.osv) \(.trace[0].module)@\(.trace[0].version), fixed in \(.fixed_version)"' "$out" | sort -u
+        }
+        stdlib="$(reachable yes)"
+        if [ -n "$stdlib" ]; then
+          echo "Reachable in the $({{.FLOOR}} go env GOVERSION) standard library, which consumers choose, so not failing:"
+          echo "$stdlib"
+        fi
+        found="$(reachable no)"
+        if [ -n "$found" ]; then
+          echo "Reachable vulnerabilities in dependencies; update them:" >&2
+          echo "$found" >&2
+          exit 1
+        fi
+        echo "No reachable vulnerabilities in dependencies."
 
   generate:
     desc: Regenerate code from labels.yaml
