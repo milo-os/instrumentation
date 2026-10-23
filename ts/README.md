@@ -106,6 +106,15 @@ const logger = new Logger({ ...buildFields(), requestId });
 
 This library does not redact. Don't log secrets.
 
+## Check adoption
+
+`assertAdopted()` from `@miloapis/instrumentation/test` fails if any source
+imports `prom-client` or `@hono/prometheus`, builds metrics directly on
+`@prometheus-io/client`, or never serves `scrape()`. It needs `typescript`
+installed. See
+[ADOPTING.md](https://github.com/milo-os/instrumentation/blob/main/ADOPTING.md)
+for the test to add and how to fix what it reports.
+
 ## Labels
 
 Label constants are generated from

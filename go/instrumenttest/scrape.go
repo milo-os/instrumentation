@@ -27,5 +27,5 @@ func AssertScrapes(t testing.TB, h http.Handler) {
 		return
 	}
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-	t.Errorf("scrape returned %d; a series exported by two registries fails the whole scrape, so rename one of them:\n%s", resp.StatusCode, body)
+	t.Errorf("scrape returned %d; a series exported by two registries fails the whole scrape, so rename one of them:\n%s"+seeGuide, resp.StatusCode, body)
 }

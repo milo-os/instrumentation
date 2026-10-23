@@ -102,14 +102,14 @@ func assertNothingStranded(t testing.TB, root string, cfg config) {
 	for _, f := range findings {
 		switch f.kind {
 		case kindStranded:
-			t.Errorf("%s:%d: %s uses Prometheus's default registry, which neither a controller-runtime manager nor a k8s.io/apiserver serves; create metrics with go.miloapis.com/instrumentation/metrics", f.file, f.line, f.what)
+			t.Errorf("%s:%d: %s uses Prometheus's default registry, which neither a controller-runtime manager nor a k8s.io/apiserver serves; create metrics with go.miloapis.com/instrumentation/metrics"+seeGuide, f.file, f.line, f.what)
 		case kindDirect:
-			t.Errorf("%s:%d: %s registers metrics outside go.miloapis.com/instrumentation/metrics, so they skip the reserved-label check and Lint; use its constructors or metrics.MustRegister", f.file, f.line, f.what)
+			t.Errorf("%s:%d: %s registers metrics outside go.miloapis.com/instrumentation/metrics, so they skip the reserved-label check and Lint; use its constructors or metrics.MustRegister"+seeGuide, f.file, f.line, f.what)
 		case kindUnserved:
-			t.Errorf("%s:%d: %s serves component-base's registry without the metrics created through go.miloapis.com/instrumentation/metrics; serve metrics.Handler(metrics.WithGatherers(legacyregistry.DefaultGatherer)) instead", f.file, f.line, f.what)
+			t.Errorf("%s:%d: %s serves component-base's registry without the metrics created through go.miloapis.com/instrumentation/metrics; serve metrics.Handler(metrics.WithGatherers(legacyregistry.DefaultGatherer)) instead"+seeGuide, f.file, f.line, f.what)
 		case kindDisabled:
 			if !served {
-				t.Errorf("%s:%d: this manager's metrics server is disabled and nothing in the module serves metrics.Handler, so no metric is exported; mount metrics.Handler on the server that serves /metrics", f.file, f.line)
+				t.Errorf("%s:%d: this manager's metrics server is disabled and nothing in the module serves metrics.Handler, so no metric is exported; mount metrics.Handler on the server that serves /metrics"+seeGuide, f.file, f.line)
 			}
 		}
 	}

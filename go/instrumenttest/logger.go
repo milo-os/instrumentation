@@ -74,15 +74,15 @@ func assertStandardLogger(t testing.TB, root string, cfg config) {
 		case f.kind == kindWired:
 			wired = true
 		case f.kind == kindDevMode:
-			t.Errorf("%s:%d: %s turns on development mode, which logs console text at debug level and makes DPanic panic; leave it off and pass --zap-devel for local runs", f.file, f.line, f.what)
+			t.Errorf("%s:%d: %s turns on development mode, which logs console text at debug level and makes DPanic panic; leave it off and pass --zap-devel for local runs"+seeGuide, f.file, f.line, f.what)
 		case strings.HasSuffix(f.what, "SetLogger"):
-			t.Errorf("%s:%d: %s sets a logger, but nothing in this file calls go.miloapis.com/instrumentation/logging.New%s", f.file, f.line, f.what, f.note)
+			t.Errorf("%s:%d: %s sets a logger, but nothing in this file calls go.miloapis.com/instrumentation/logging.New%s"+seeGuide, f.file, f.line, f.what, f.note)
 		default:
-			t.Errorf("%s:%d: %s builds a logger without the standard defaults; use go.miloapis.com/instrumentation/logging", f.file, f.line, f.what)
+			t.Errorf("%s:%d: %s builds a logger without the standard defaults; use go.miloapis.com/instrumentation/logging"+seeGuide, f.file, f.line, f.what)
 		}
 	}
 	if !wired {
-		t.Errorf("no file in %s calls SetLogger and builds the logger with logging.New or logging.NewRaw from go.miloapis.com/instrumentation/logging, so nothing logs with the standard defaults: controller-runtime drops its log lines and klog writes plain text", root)
+		t.Errorf("no file in %s calls SetLogger and builds the logger with logging.New or logging.NewRaw from go.miloapis.com/instrumentation/logging, so nothing logs with the standard defaults: controller-runtime drops its log lines and klog writes plain text"+seeGuide, root)
 	}
 }
 

@@ -12,20 +12,18 @@ Requires Go 1.26 or later and controller-runtime v0.20.4 or later.
 
 ## Find unexported metrics and unstandard loggers
 
-Add these tests to any package in your module:
+Add this test to any package in your module:
 
 ```go
-func TestMetricsAreExported(t *testing.T) {
-    instrumenttest.AssertNothingStranded(t)
-}
-
-func TestStandardLogger(t *testing.T) {
-    instrumenttest.AssertStandardLogger(t)
+func TestInstrumentationAdopted(t *testing.T) {
+    instrumenttest.AssertAdopted(t)
 }
 ```
 
-Both read your module's non-test source, so they work wherever the test
-lives.
+It runs `AssertNothingStranded` and `AssertStandardLogger`, which you can also
+call on their own. Both read your module's non-test source, so they work
+wherever the test lives. Every failure links to
+[ADOPTING.md](../ADOPTING.md), which says how to fix it.
 
 `AssertNothingStranded` fails at:
 

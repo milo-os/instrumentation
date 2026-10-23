@@ -356,3 +356,25 @@ func TestAssertStandardLoggerRefusesDevelopmentMode(t *testing.T) {
 		}
 	}
 }
+
+func TestAssertAdoptedReportsBothChecksAndLinksTheGuide(t *testing.T) {
+	r := run(t, func(tb testing.TB) { assertAdopted(tb, "testdata/adopted", newConfig([]Option{SkipDir("good")})) })
+	joined := strings.Join(r.errors, "\n")
+	for _, want := range []string{"bad/main.go:8: promauto.NewCounter", "bad/main.go:10: zap.NewProduction", "calls SetLogger"} {
+		if !strings.Contains(joined, want) {
+			t.Errorf("errors do not contain %q:\n%s", want, joined)
+		}
+	}
+	for _, e := range r.errors {
+		if !strings.HasSuffix(e, "; see "+guide) {
+			t.Errorf("error does not link the guide: %q", e)
+		}
+	}
+}
+
+func TestAssertAdoptedPassesAnAdoptedModule(t *testing.T) {
+	r := run(t, func(tb testing.TB) { assertAdopted(tb, "testdata/adopted", newConfig([]Option{SkipDir("bad")})) })
+	if len(r.errors) != 0 || r.fatal {
+		t.Errorf("an adopted module was refused: %v", r.errors)
+	}
+}
