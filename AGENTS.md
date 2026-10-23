@@ -35,7 +35,8 @@ passes in CI.
   release.
 - Go commands in Taskfiles set `GOTOOLCHAIN` inline. Task's `env:` doesn't
   override a variable already set, and CI sets `GOTOOLCHAIN=local`.
-- Keep the Go floor at Go 1.25.0 and controller-runtime v0.20.4, so services
+- Keep the Go floor at the oldest Go release still getting security fixes,
+  now Go 1.26.0, and controller-runtime at v0.20.4, so services
   pinned to older Kubernetes libraries can still adopt the module.
 - The TypeScript package builds on `@prometheus-io/client`, never
   `prom-client`, and runs on Node.js 24 and Bun. Its tests run under both.
