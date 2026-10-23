@@ -1,0 +1,14 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Keeps tool versions pinned in Taskfiles current. Each pin is annotated with a renovate comment naming its datasource and package.",
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Taskfile variables preceded by a renovate comment",
+      "managerFilePatterns": ["/(^|/)Taskfile\\.ya?ml$/"],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\s+[A-Z_]+: '?(?<currentValue>[^'\\s]+)'?"
+      ]
+    }
+  ]
+}
