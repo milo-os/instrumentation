@@ -22,8 +22,10 @@ prefix. A change to `labels.yaml` reaches each language in its next release.
 
 - **Go:** push a `go/vX.Y.Z` tag.
 - **TypeScript:** run the "Publish TypeScript package to npm" workflow, which
-  opens a pull request bumping `ts/package.json`. Merging it publishes to
-  npm's `latest` tag, then tags `ts/vX.Y.Z` with a GitHub release.
+  opens a pull request bumping `ts/package.json`. Merging it stages the
+  version on npm and tags `ts/vX.Y.Z` with a GitHub release. A maintainer
+  then approves the staged version with two-factor authentication, on
+  npmjs.com or with `npm stage approve`, which publishes it to `latest`.
 
 Go releases before v0.4.0 were tagged at the repository root, from before the
 module moved into `go`.
