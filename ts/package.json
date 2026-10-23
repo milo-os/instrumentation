@@ -14,7 +14,8 @@
     "./labels": "./dist/labels.js",
     "./metrics": "./dist/metrics.js",
     "./buildinfo": "./dist/buildinfo.js",
-    "./logging": "./dist/logging.js"
+    "./logging": "./dist/logging.js",
+    "./test": "./dist/test.js"
   },
   "files": [
     "dist"
@@ -34,6 +35,12 @@
     "typescript": "6.0.3"
   },
   "peerDependencies": {
-    "@prometheus-io/client": "^0.16.1"
+    "@prometheus-io/client": "^0.16.1",
+    "typescript": ">=5"
+  },
+  "peerDependenciesMeta": {
+    "typescript": {
+      "optional": true
+    }
   }
 }

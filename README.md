@@ -8,6 +8,8 @@ written in.
 | Go | [go](go) | `go get go.miloapis.com/instrumentation` |
 | TypeScript | [ts](ts) | `npm install @miloapis/instrumentation` |
 
+To add either one to a service, follow [ADOPTING.md](ADOPTING.md).
+
 ## Shared labels
 
 [labels.yaml](labels.yaml) is the one list of label names every language
