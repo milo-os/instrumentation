@@ -66,30 +66,56 @@ jobs:
           echo "version=${FILE_VERSION}" >> "$GITHUB_OUTPUT"
           echo "should-release=${SHOULD_RELEASE}" >> "$GITHUB_OUTPUT"
 
-  # ── Publish release to npm ───────────────────────────────────────────────
+  # ── Stage release on npm ─────────────────────────────────────────────────
   # Runs when a push to main carries a newer version than npm's latest tag.
-  # Publishes the version already present in ts/package.json to latest.
-  publish-release:
-    name: Publish release
+  # Stages the version in ts/package.json on npm. The trusted publisher allows
+  # only staged publishing, so the version reaches npm's latest tag only after
+  # a maintainer approves it with two-factor authentication, on npmjs.com or
+  # with npm stage approve. A push to ts before that approval tries to stage
+  # the same version again and fails, which is harmless.
+  stage-release:
+    name: Stage release
     needs: detect
     if: needs.detect.outputs.should-release == 'true'
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       id-token: write
-    uses: datum-cloud/actions/.github/workflows/publish-npm-package.yaml@v1.14.0
-    with:
-      package-name: "@miloapis/instrumentation"
-      package-path: ts
-      release-mode: release
-    secrets: inherit
+    defaults:
+      run:
+        working-directory: ts
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+
+      - name: Install an npm that can stage
+        run: npm install -g npm@11.21.0
+
+      - name: Build
+        run: |
+          PNPM="$(node -p "require('./package.json').packageManager")"
+          npx --yes "$PNPM" install --frozen-lockfile
+          npx --yes "$PNPM" run build
+
+      - name: Stage on npm
+        run: npm stage publish --provenance --access public
 
   # ── Tag and create GitHub Release ────────────────────────────────────────
-  # Runs after publish-release. Tags the pushed commit as ts/v<version> and
-  # creates the matching GitHub release. The ts/ prefix keeps the package out of
+  # Runs after stage-release. Tags the pushed commit as ts/v<version> and
+  # creates the matching GitHub release, which says the version awaits
+  # approval on npm. The ts/ prefix keeps the package out of
   # the go/v* tag namespace used by the Go module.
   tag-and-release:
     name: Tag and create GitHub Release
-    needs: [detect, publish-release]
+    needs: [detect, stage-release]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -120,6 +146,7 @@ jobs:
           gh release create "$TAG" \
             --repo "${{ github.repository }}" \
             --title "@miloapis/instrumentation v${VERSION}" \
+            --notes "Staged on npm. It reaches npm's \`latest\` tag once a maintainer approves it with two-factor authentication: on npmjs.com under the package's staged versions, or with \`npm stage approve\`." \
             --generate-notes
 
   # ── Open release pull request ────────────────────────────────────────────
@@ -177,7 +204,7 @@ jobs:
         run: |
           BODY="Bumps \`ts/package.json\` to **${VERSION}** (${BUMP_TYPE} bump).
 
-          Merging this pull request publishes \`@miloapis/instrumentation\` v${VERSION} to npm's \`latest\` tag and creates the tag \`ts/v${VERSION}\` with a GitHub release."
+          Merging this pull request stages \`@miloapis/instrumentation\` v${VERSION} on npm and creates the tag \`ts/v${VERSION}\` with a GitHub release. A maintainer then approves the staged version on npm with two-factor authentication, which publishes it to \`latest\`."
           gh pr create \
             --repo "${{ github.repository }}" \
             --base main \
