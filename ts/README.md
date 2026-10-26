@@ -7,7 +7,7 @@ info metric.
 ## Install
 
 ```sh
-npm install @miloapis/instrumentation @prometheus-io/client
+npm install --save-exact @miloapis/instrumentation @prometheus-io/client
 ```
 
 Requires Node.js 24 or later, or Bun, and `@prometheus-io/client` 0.16, the
