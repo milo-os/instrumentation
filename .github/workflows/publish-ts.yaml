@@ -185,15 +185,11 @@ jobs:
 
       - name: Push release branch
         env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ steps.bump.outputs.version }}
           BRANCH: ${{ steps.bump.outputs.branch }}
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git checkout -b "$BRANCH"
-          git add ts/package.json
-          git commit -m "chore(ts): release @miloapis/instrumentation v${VERSION}"
-          git push origin "$BRANCH"
+          BASE_SHA="$(git rev-parse HEAD)" scripts/sign-commit "$BRANCH" "chore(ts): release @miloapis/instrumentation v${VERSION}" ts/package.json
 
       - name: Open pull request
         env:
