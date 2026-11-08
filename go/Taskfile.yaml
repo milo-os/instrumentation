@@ -6,9 +6,9 @@ version: '3'
 
 vars:
   GO_FLOOR: 1.26.0
-  GO_LATEST: 1.27.2
+  GO_LATEST: 1.27.3
   # renovate: datasource=go depName=github.com/golangci/golangci-lint/v2
-  GOLANGCI_LINT_VERSION: v2.12.2
+  GOLANGCI_LINT_VERSION: v2.15.0
   # renovate: datasource=go depName=golang.org/x/vuln
   GOVULNCHECK_VERSION: v1.8.0
   CONTROLLER_RUNTIME_NEWEST: v0.25.2
@@ -93,15 +93,15 @@ tasks:
       - '{{.FLOOR}} go vet ./...'
 
   lint:
-    desc: Run the pinned golangci-lint on the floor toolchain
+    desc: Run the pinned golangci-lint on the latest toolchain
     deps: [install-golangci-lint]
     cmds:
-      - '{{.FLOOR}} {{.TOOL_DIR}}/golangci-lint-{{.GOLANGCI_LINT_VERSION}} run ./...'
+      - '{{.LATEST}} {{.TOOL_DIR}}/golangci-lint-{{.GOLANGCI_LINT_VERSION}} run ./...'
 
   install-golangci-lint:
     internal: true
     cmds:
-      - '{{.FLOOR}} GOBIN={{.TOOL_DIR}}/golangci-lint-{{.GOLANGCI_LINT_VERSION}}.d go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@{{.GOLANGCI_LINT_VERSION}}'
+      - '{{.LATEST}} GOBIN={{.TOOL_DIR}}/golangci-lint-{{.GOLANGCI_LINT_VERSION}}.d go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@{{.GOLANGCI_LINT_VERSION}}'
       - mv '{{.TOOL_DIR}}/golangci-lint-{{.GOLANGCI_LINT_VERSION}}.d/golangci-lint' '{{.TOOL_DIR}}/golangci-lint-{{.GOLANGCI_LINT_VERSION}}'
       - rmdir '{{.TOOL_DIR}}/golangci-lint-{{.GOLANGCI_LINT_VERSION}}.d'
     status:
