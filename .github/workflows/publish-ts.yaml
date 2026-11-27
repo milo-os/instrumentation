@@ -25,7 +25,7 @@ jobs:
   detect:
     name: Detect release
     if: github.event_name == 'push'
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.MILO_LINUX_RUNNER || 'ubuntu-latest' }}
     permissions:
       contents: read
     outputs:
@@ -116,7 +116,7 @@ jobs:
   tag-and-release:
     name: Tag and create GitHub Release
     needs: [detect, stage-release]
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.MILO_LINUX_RUNNER || 'ubuntu-latest' }}
     permissions:
       contents: write
     env:
@@ -157,7 +157,7 @@ jobs:
   open-release-pr:
     name: Open release pull request
     if: github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.MILO_LINUX_RUNNER || 'ubuntu-latest' }}
     permissions:
       contents: write
       pull-requests: write
